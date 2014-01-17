@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -406,8 +407,6 @@ public class RequestBuilderTest {
   }
 
   @Test public void simpleMultipart() throws Exception {
-	List<Object> values = new ArrayList<Object>(Arrays.asList(1, 2, "three"));
-	
     Request request = new Helper() //
         .setMethod("POST") //
         .setHasBody() //
@@ -416,7 +415,6 @@ public class RequestBuilderTest {
         .setMultipart() //
         .addPart("ping", "pong") //
         .addPart("kit", new TypedString("kat")) //
-        .addPart("feed", values)
         .build();
     assertThat(request.getMethod()).isEqualTo("POST");
     assertThat(request.getHeaders()).isEmpty();
@@ -424,24 +422,15 @@ public class RequestBuilderTest {
 
     MultipartTypedOutput body = (MultipartTypedOutput) request.getBody();
     List<byte[]> bodyParts = MimeHelper.getParts(body);
-    assertThat(bodyParts).hasSize(5);
+    assertThat(bodyParts).hasSize(2);
 
     Iterator<byte[]> iterator = bodyParts.iterator();
-
+    
     String one = new String(iterator.next(), "UTF-8");
     assertThat(one).contains("name=\"ping\"\r\n").endsWith("\r\npong");
 
     String two = new String(iterator.next(), "UTF-8");
     assertThat(two).contains("name=\"kit\"").endsWith("\r\nkat");
-
-    String three = new String(iterator.next(), "UTF-8");
-    assertThat(three).contains("name=\"feed[]\"").endsWith("\r\n1");
-    
-    String four = new String(iterator.next(), "UTF-8");
-    assertThat(four).contains("name=\"feed[]\"").endsWith("\r\n2");
-
-    String five = new String(iterator.next(), "UTF-8");
-    assertThat(five).contains("name=\"feed[]\"").endsWith("\r\nthree");
   }
 
   @Test public void multipartNullRemovesPart() throws Exception {
@@ -483,6 +472,35 @@ public class RequestBuilderTest {
       assertThat(e.getMessage()).isEqualTo("Multipart requests must contain at least one part.");
     }
   }
+  
+  @Test public void multipartIterablePart() throws Exception {
+		Request request = new Helper() //
+		    .setMethod("POST") //
+		    .setHasBody() //
+		    .setUrl("http://example.com") //
+		    .setPath("/foo/bar/") //
+		    .setMultipart() //
+		    .addPart("ping", "pong") //
+		    .addPart("feed", Arrays.<Object>asList(1, 2, "three")) //
+		    .build();
+
+		MultipartTypedOutput body = (MultipartTypedOutput) request.getBody();
+		List<byte[]> bodyParts = MimeHelper.getParts(body);
+		assertThat(bodyParts).hasSize(4);
+
+		Iterator<byte[]> iterator = bodyParts.iterator();
+		String one = new String(iterator.next(), "UTF-8");
+		assertThat(one).contains("name=\"ping\"\r\n").endsWith("\r\npong");
+
+		String two = new String(iterator.next(), "UTF-8");
+		assertThat(two).contains("name=\"feed[]\"").endsWith("\r\n1");
+
+		String three = new String(iterator.next(), "UTF-8");
+		assertThat(three).contains("name=\"feed[]\"").endsWith("\r\n2");
+
+		String four = new String(iterator.next(), "UTF-8");
+		assertThat(four).contains("name=\"feed[]\"").endsWith("\r\nthree");
+  }
 
   @Test public void simpleFormEncoded() throws Exception {
     Request request = new Helper() //
@@ -510,6 +528,29 @@ public class RequestBuilderTest {
         .build();
     assertTypedBytes(request.getBody(), "foo=bar&kit=kat");
   }
+
+  @Test public void formEncodedIteratableField() throws Exception {
+    Request request = new Helper() //
+        .setMethod("POST") //
+        .setHasBody() //
+        .setUrl("http://example.com") //
+        .setPath("/foo") //
+        .setFormEncoded() //
+        .addField("foo", "bar") //
+        .addField("hoge", Arrays.<Object>asList(1, 2, "huga")) //
+        .build();
+
+    String encode = "UTF-8";
+    String listParamName = URLEncoder.encode("hoge[]", encode);
+    StringBuilder expectedBody = new StringBuilder();
+    expectedBody.append("foo=bar");
+    expectedBody.append("&").append(listParamName).append("=").append(URLEncoder.encode("1", encode));
+    expectedBody.append("&").append(listParamName).append("=").append(URLEncoder.encode("2", encode));
+    expectedBody.append("&").append(listParamName).append("=").append(URLEncoder.encode("huga", encode));
+    
+    assertTypedBytes(request.getBody(), expectedBody.toString());
+  }
+
 
   @Test public void simpleHeaders() throws Exception {
     Request request = new Helper() //
@@ -702,7 +743,7 @@ public class RequestBuilderTest {
       return this;
     }
 
-    Helper addField(String name, String value) {
+    Helper addField(String name, Object value) {
       paramNames.add(name);
       paramUsages.add(FIELD);
       args.add(value);

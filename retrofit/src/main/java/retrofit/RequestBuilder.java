@@ -191,10 +191,28 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
     }
   }
   
-  void addPartList(String name, Iterable<?> values) {
+  void addFieldListParams(String name, Iterable<?> values) {
+    FormUrlEncodedTypedOutput formBody = this.formBody;
+    String keyName = name.concat("[]");
+    
+    for (Object value : values) {
+      if (value == null) {
+        throw new IllegalArgumentException("Part param value map must not be null.");       
+      }
+      
+      formBody.addField(keyName, value.toString());
+    }
+  }
+  
+  void addPartListParams(String name, Iterable<?> values) {
 	  MultipartTypedOutput multiPart = this.multipartBody;
-	  String keyName = name + "[]";
+	  String keyName = name.concat("[]");
+	  
 	  for (Object value : values) {
+	    if (value == null) {
+	      throw new IllegalArgumentException("Part param value map must not be null.");	      
+	    }
+	    
 		  multiPart.addPart(keyName, new TypedString(value.toString()));
 	  }
   }
@@ -249,7 +267,11 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
           break;
         case FIELD:
           if (value != null) { // Skip null values.
-            formBody.addField(name, value.toString());
+            if (value instanceof Iterable<?>) {
+              addFieldListParams(name, (Iterable<?>) value);
+            } else {
+              formBody.addField(name, value.toString());
+            }
           }
           break;
         case PART:
@@ -259,7 +281,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
             } else if (value instanceof String) {
               multipartBody.addPart(name, new TypedString((String) value));
             } else if (value instanceof Iterable<?>) {
-              addPartList(name, (Iterable<?>) value);
+              addPartListParams(name, (Iterable<?>) value);
             } else {
               multipartBody.addPart(name, converter.toBody(value));
             }
