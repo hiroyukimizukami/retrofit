@@ -406,6 +406,8 @@ public class RequestBuilderTest {
   }
 
   @Test public void simpleMultipart() throws Exception {
+	List<Object> values = new ArrayList<Object>(Arrays.asList(1, 2, "three"));
+	
     Request request = new Helper() //
         .setMethod("POST") //
         .setHasBody() //
@@ -414,6 +416,7 @@ public class RequestBuilderTest {
         .setMultipart() //
         .addPart("ping", "pong") //
         .addPart("kit", new TypedString("kat")) //
+        .addPart("feed", values)
         .build();
     assertThat(request.getMethod()).isEqualTo("POST");
     assertThat(request.getHeaders()).isEmpty();
@@ -421,7 +424,7 @@ public class RequestBuilderTest {
 
     MultipartTypedOutput body = (MultipartTypedOutput) request.getBody();
     List<byte[]> bodyParts = MimeHelper.getParts(body);
-    assertThat(bodyParts).hasSize(2);
+    assertThat(bodyParts).hasSize(5);
 
     Iterator<byte[]> iterator = bodyParts.iterator();
 
@@ -430,6 +433,15 @@ public class RequestBuilderTest {
 
     String two = new String(iterator.next(), "UTF-8");
     assertThat(two).contains("name=\"kit\"").endsWith("\r\nkat");
+
+    String three = new String(iterator.next(), "UTF-8");
+    assertThat(three).contains("name=\"feed[]\"").endsWith("\r\n1");
+    
+    String four = new String(iterator.next(), "UTF-8");
+    assertThat(four).contains("name=\"feed[]\"").endsWith("\r\n2");
+
+    String five = new String(iterator.next(), "UTF-8");
+    assertThat(five).contains("name=\"feed[]\"").endsWith("\r\nthree");
   }
 
   @Test public void multipartNullRemovesPart() throws Exception {

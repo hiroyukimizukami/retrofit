@@ -190,6 +190,14 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
       }
     }
   }
+  
+  void addPartList(String name, Iterable<?> values) {
+	  MultipartTypedOutput multiPart = this.multipartBody;
+	  String keyName = name + "[]";
+	  for (Object value : values) {
+		  multiPart.addPart(keyName, new TypedString(value.toString()));
+	  }
+  }
 
   void setArguments(Object[] args) {
     if (args == null) {
@@ -250,6 +258,8 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
               multipartBody.addPart(name, (TypedOutput) value);
             } else if (value instanceof String) {
               multipartBody.addPart(name, new TypedString((String) value));
+            } else if (value instanceof Iterable<?>) {
+              addPartList(name, (Iterable<?>) value);
             } else {
               multipartBody.addPart(name, converter.toBody(value));
             }
