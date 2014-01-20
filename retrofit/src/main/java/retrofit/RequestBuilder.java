@@ -197,7 +197,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
     
     for (Object value : values) {
       if (value == null) {
-        throw new IllegalArgumentException("Part param value map must not be null.");       
+        throw new IllegalArgumentException("Field param value must not be null.");
       }
       
       formBody.addField(keyName, value.toString());
@@ -210,7 +210,7 @@ final class RequestBuilder implements RequestInterceptor.RequestFacade {
 	  
 	  for (Object value : values) {
 	    if (value == null) {
-	      throw new IllegalArgumentException("Part param value map must not be null.");	      
+	      throw new IllegalArgumentException("Part param value must not be null.");
 	    }
 	    
 		  multiPart.addPart(keyName, new TypedString(value.toString()));
